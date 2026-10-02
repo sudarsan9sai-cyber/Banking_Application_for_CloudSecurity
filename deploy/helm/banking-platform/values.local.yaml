@@ -1,0 +1,87 @@
+﻿# =============================================================================
+# values.local.yaml - Local Docker Desktop Kubernetes override
+#
+# Usage:
+#   helm install banking-platform ./deploy/helm/banking-platform \
+#     -f deploy/helm/banking-platform/values.yaml \
+#     -f deploy/helm/banking-platform/values.local.yaml \
+#     --namespace banking --create-namespace
+# =============================================================================
+
+# Use local images - never pull from a registry
+imagePullPolicy: Never
+
+# Disable AWS-dependent features
+otel:
+  enabled: "false"
+s3:
+  enabled: "false"
+
+kafka:
+  storageClass: ""
+
+# Image overrides - all pointing to locally-built images
+authService:
+  image: banking-platform-auth-service:latest
+authzService:
+  image: banking-platform-authz-service:latest
+customerService:
+  image: banking-platform-customer-service:latest
+profileService:
+  image: banking-platform-profile-service:latest
+kycService:
+  image: banking-platform-kyc-service:latest
+documentService:
+  image: banking-platform-document-service:latest
+ledgerService:
+  image: banking-platform-ledger-service:latest
+accountService:
+  image: banking-platform-account-service:latest
+transactionService:
+  image: banking-platform-transaction-service:latest
+beneficiaryService:
+  image: banking-platform-beneficiary-service:latest
+paymentService:
+  image: banking-platform-payment-service:latest
+walletService:
+  image: banking-platform-wallet-service:latest
+loanService:
+  image: banking-platform-loan-service:latest
+emiService:
+  image: banking-platform-emi-service:latest
+fixedDepositService:
+  image: banking-platform-fixed-deposit-service:latest
+recurringDepositService:
+  image: banking-platform-recurring-deposit-service:latest
+cardService:
+  image: banking-platform-card-service:latest
+investmentService:
+  image: banking-platform-investment-service:latest
+currencyExchangeService:
+  image: banking-platform-currency-exchange-service:latest
+auditService:
+  image: banking-platform-audit-service:latest
+fraudService:
+  image: banking-platform-fraud-service:latest
+notificationService:
+  image: banking-platform-notification-service:latest
+statementService:
+  image: banking-platform-statement-service:latest
+reportsService:
+  image: banking-platform-reports-service:latest
+analyticsService:
+  image: banking-platform-analytics-service:latest
+searchService:
+  image: banking-platform-search-service:latest
+emailService:
+  image: banking-platform-email-service:latest
+smsService:
+  image: banking-platform-sms-service:latest
+supportService:
+  image: banking-platform-support-service:latest
+adminService:
+  image: banking-platform-admin-service:latest
+apiGateway:
+  image: banking-platform-api-gateway:latest
+frontend:
+  image: banking-platform-frontend:latest

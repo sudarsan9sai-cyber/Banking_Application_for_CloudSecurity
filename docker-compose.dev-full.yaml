@@ -1,0 +1,66 @@
+# Lightweight compose for full-stack local dev with reduced parallelism
+# Use: docker compose -f docker-compose.yaml -f docker-compose.dev-full.yaml up -d --build
+
+# This file overrides docker-compose.services.yaml to reduce memory strain
+# Only a subset of services are included; add more services via additional profiles
+
+name: banking-platform
+
+services:
+  postgres:
+    image: postgres:16-alpine
+
+  redis:
+    image: redis:7-alpine
+
+  kafka:
+    image: apache/kafka:3.8.1
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+
+  # Core services essential for development
+  auth-service:
+    build: { context: ., dockerfile: build/service.Dockerfile, args: { SERVICE: auth-service } }
+    container_name: banking-auth-service
+    environment:
+      <<: &common-env
+        ENVIRONMENT: development
+        POSTGRES_ENABLED: "true"
+        POSTGRES_HOST: postgres
+        POSTGRES_PORT: "5432"
+        POSTGRES_USER: banking
+        POSTGRES_PASSWORD: banking
+        POSTGRES_DB: banking
+        REDIS_ENABLED: "true"
+        REDIS_ADDR: redis:6379
+        KAFKA_ENABLED: "true"
+        KAFKA_BROKERS: kafka:9094
+        OTEL_ENABLED: "false"
+        JWT_SECRET: local-dev-secret-change-me
+        JWT_ISSUER: banking-platform
+        LOG_FORMAT: json
+        SERVICE_NAME: auth-service
+        GRPC_ENABLED: "true"
+      depends_on:
+        postgres:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      restart: unless-stopped
+    ports: ["8101:8080"]
+
+  api-gateway:
+    build: { context: ., dockerfile: build/service.Dockerfile, args: { SERVICE: api-gateway } }
+    container_name: banking-api-gateway
+    environment:
+      <<: *common-env
+      SERVICE_NAME: api-gateway
+      CORS_ALLOWED_ORIGINS: "*"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    ports: ["8080:8080"]
