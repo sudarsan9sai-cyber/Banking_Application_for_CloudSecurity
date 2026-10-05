@@ -136,6 +136,7 @@ jobs:
           context: ${{ steps.img.outputs.context }}
           file: ${{ steps.img.outputs.dockerfile }}
           build-args: ${{ steps.img.outputs.buildargs }}
+          provenance: false
           push: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.IMAGE_PREFIX }}:${{ matrix.service }}-${{ steps.vars.outputs.sha }}
