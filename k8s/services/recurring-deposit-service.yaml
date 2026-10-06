@@ -1,0 +1,151 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recurring-deposit-service-deployment
+  namespace: banking
+  labels:
+    app: recurring-deposit-service
+    app.kubernetes.io/part-of: banking-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recurring-deposit-service
+  template:
+    metadata:
+      labels:
+        app: recurring-deposit-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Disable legacy service env vars (e.g. POSTGRES_PORT=tcp://ip:5432) that
+      # would collide with our typed config env vars.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: recurring-deposit-service
+          image: 799823514784.dkr.ecr.ap-south-1.amazonaws.com/banking-platform:recurring-deposit-service-latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: recurring-deposit-service-config
+            - secretRef:
+                name: recurring-deposit-service-secret
+          resources:
+            requests:
+              cpu: 25m
+              memory: 48Mi
+            limits:
+              cpu: "1"
+              memory: 192Mi
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          startupProbe:
+            httpGet: { path: /startupz, port: 8080 }
+            failureThreshold: 40
+            periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recurring-deposit-service
+  namespace: banking
+  labels:
+    app: recurring-deposit-service
+    app.kubernetes.io/part-of: banking-platform
+spec:
+  type: ClusterIP
+  selector:
+    app: recurring-deposit-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: recurring-deposit-service-config
+  namespace: banking
+  labels:
+    app: recurring-deposit-service
+data:
+  SERVICE_NAME: "recurring-deposit-service"
+  ENVIRONMENT: "development"
+  HTTP_PORT: "8080"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  POSTGRES_ENABLED: "true"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "banking"
+  POSTGRES_SSLMODE: "disable"
+  REDIS_ENABLED: "true"
+  REDIS_ADDR: "redis:6379"
+  KAFKA_ENABLED: "true"
+  KAFKA_BROKERS: "kafka:9092"
+  OTEL_ENABLED: "false"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "otel-collector.observability.svc.cluster.local:4317"
+  OTEL_EXPORTER_OTLP_INSECURE: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: recurring-deposit-service-secret
+  namespace: banking
+  labels:
+    app: recurring-deposit-service
+type: Opaque
+stringData:
+  POSTGRES_USER: "banking"
+  POSTGRES_PASSWORD: "banking"
+  JWT_SECRET: "dev-secret-change-me"
+  JWT_ISSUER: "banking-platform"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: recurring-deposit-service-hpa
+  namespace: banking
+  labels:
+    app: recurring-deposit-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: recurring-deposit-service-deployment
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
