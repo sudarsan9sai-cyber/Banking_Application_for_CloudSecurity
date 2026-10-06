@@ -195,14 +195,18 @@ jobs:
           echo "=== Services ==="
           kubectl get svc -n banking
           echo "Waiting for Frontend Load Balancer DNS..."
-          for i in {1..20}; do
-            LB_HOST=$(kubectl get svc frontend -n banking -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+          for i in {1..30}; do
+            LB_HOST=$(kubectl get svc frontend -n banking -o jsonpath='{.status.loadBalancer.ingress[0].hostname}{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
             if [ -n "$LB_HOST" ]; then
               echo "=========================================================="
               echo "🎉 ACCESS BANKING APP AT: http://$LB_HOST"
               echo "=========================================================="
               break
             fi
+            echo "Attempt $i/30: Load Balancer still provisioning, waiting 6s..."
             sleep 6
           done
+
+          echo "=== Frontend Service Details & Events ==="
+          kubectl describe svc frontend -n banking
 
