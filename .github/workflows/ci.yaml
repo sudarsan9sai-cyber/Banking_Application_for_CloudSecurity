@@ -192,21 +192,35 @@ jobs:
         run: |
           echo "=== Nodes ==="
           kubectl get nodes -o wide
+
+          echo "=== All Pods ==="
+          kubectl get pods -n banking
+
           echo "=== Services ==="
           kubectl get svc -n banking
-          echo "Waiting for Frontend Load Balancer DNS..."
-          for i in {1..30}; do
-            LB_HOST=$(kubectl get svc frontend -n banking -o jsonpath='{.status.loadBalancer.ingress[0].hostname}{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
-            if [ -n "$LB_HOST" ]; then
+
+          echo "=== NodePort Access ==="
+          NODE_PORT=31670
+          echo "NodePort: $NODE_PORT"
+          echo ""
+          echo "Waiting for a node to get a Public IP..."
+          for i in {1..20}; do
+            NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}' 2>/dev/null || true)
+            if [ -n "$NODE_IP" ]; then
               echo "=========================================================="
-              echo "🎉 ACCESS BANKING APP AT: http://$LB_HOST"
+              echo "🎉 ACCESS BANKING APP AT: http://$NODE_IP:$NODE_PORT"
               echo "=========================================================="
               break
             fi
-            echo "Attempt $i/30: Load Balancer still provisioning, waiting 6s..."
+            echo "Attempt $i/20: Waiting for node external IP... (6s)"
             sleep 6
           done
 
+          echo ""
+          echo "=== If above URL is empty, get Node IP manually ==="
+          echo "Run: kubectl get nodes -o wide"
+          echo "Then open: http://<EXTERNAL-IP>:31670"
+          echo ""
           echo "=== Frontend Service Details & Events ==="
           kubectl describe svc frontend -n banking
 
